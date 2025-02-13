@@ -1,0 +1,178 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Chat Bot</title>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/stomp.js/2.3.3/stomp.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/sockjs-client/1.5.1/sockjs.min.js"></script>
+
+    <style>
+        /* 전체 배경 및 기본 설정 */
+        body {
+            font-family: 'Arial', sans-serif;
+            background-color: #f4f7fc;
+            margin: 0;
+            padding: 0;
+        }
+
+        /* 채팅 봇 컨테이너 */
+        .chat-container {
+            max-width: 600px;
+            width: 100%;
+            margin: 20px auto;
+            background-color: #fff;
+            border-radius: 8px;
+            box-shadow: 0 4px 8px rgba(0, 0, 0, 0.1);
+            overflow: hidden;
+        }
+
+        /* 채팅 상단 헤더 */
+        .chat-header {
+            background-color: #4CAF50;
+            color: white;
+            text-align: center;
+            padding: 15px;
+        }
+
+        /* 채팅 박스 */
+        .chat-box {
+            height: 400px;  /* 고정 높이 */
+            padding: 15px;
+            overflow-y: auto;  /* 메시지가 많아지면 스크롤 표시 */
+            background-color: #f9f9f9;
+            border-bottom: 1px solid #e0e0e0;
+        }
+
+        /* 채팅 입력 영역 */
+        .chat-input {
+            display: flex;
+            padding: 10px;
+            background-color: #fafafa;
+            border-top: 1px solid #e0e0e0;
+        }
+
+        .chat-input input {
+            width: 80%;
+            padding: 10px;
+            border: 1px solid #ddd;
+            border-radius: 4px;
+            margin-right: 10px;
+            font-size: 14px;
+        }
+
+        .chat-input button {
+            padding: 10px 15px;
+            background-color: #4CAF50;
+            color: white;
+            border: none;
+            border-radius: 4px;
+            cursor: pointer;
+            font-size: 14px;
+        }
+
+        .chat-input button:hover {
+            background-color: #45a049;
+        }
+
+        /* 메시지 스타일 */
+        .message {
+            margin: 10px 0;
+            padding: 10px;
+            border-radius: 4px;
+        }
+
+        .message.bot {
+            background-color: #e1f7d5;
+            text-align: left;
+        }
+
+        .message.sender {
+            background-color: #d1e0ff;
+            text-align: right;
+        }
+
+        /* 게시판으로 돌아가기 버튼 */
+        .back-button {
+            display: block;
+            margin: 20px auto;
+            padding: 10px 20px;
+            background-color: #2196F3;
+            color: white;
+            border: none;
+            border-radius: 4px;
+            text-align: center;
+            cursor: pointer;
+            font-size: 16px;
+            text-decoration: none;
+        }
+
+        .back-button:hover {
+            background-color: #1976d2;
+        }
+    </style>
+</head>
+<body>
+    <div class="chat-container">
+        <div class="chat-header">
+            <h1>채팅 봇</h1>
+        </div>
+        <div class="chat-box" id="chat-box">
+            <!-- 채팅 메시지가 표시될 영역 -->
+        </div>
+        <div>
+            <div class="chat-input">
+                <input type="text" id="message-input" placeholder="메시지를 입력하세요" />
+                <button onclick="sendMessage()">보내기</button>
+            </div>
+            <button class="back-button" onclick="location.href='/question/list'">게시판으로 돌아가기</button>
+        </div>
+    </div>
+    <ul id="message-list"></ul>
+
+    <script>
+        var stompClient = null;
+
+        // WebSocket 연결 설정
+        function connect() {
+            var socket = new SockJS('/chat');
+            stompClient = Stomp.over(socket);
+            stompClient.connect({}, function (frame) {
+                console.log('Connected: ' + frame); // 연결 성공 시 출력
+                stompClient.subscribe('/topic/public', function (message) {
+                    console.log("Received message from server: ", message.body); // 서버로부터 수신된 메시지 출력
+                    if (message.body) {
+                        showMessage(JSON.parse(message.body), 'bot');
+                    } else {
+                        console.log('No message body received');
+                    }
+                });
+            });
+        }
+
+        function sendMessage() {
+            var messageContent = document.getElementById("message-input").value.trim();
+            console.log("Sending message: ", messageContent); // 디버깅용 로그
+            if (messageContent) {
+                var message = {
+                    sender: 'User',
+                    content: messageContent
+                };
+                stompClient.send("/app/sendMessage", {}, JSON.stringify(message)); // 서버로 메시지 전송
+                document.getElementById("message-input").value = ''; // 입력 필드 초기화
+                showMessage(message, 'sender'); // 사용자 메시지 표시
+            }
+        }
+
+        function showMessage(message, type) {
+            console.log("Showing message: ", message); // 메시지가 올바르게 표시되도록 디버깅
+            var messageElement = document.createElement('div');
+            messageElement.className = 'message ' + type;
+            messageElement.innerText = message.sender + ": " + message.content;
+            document.getElementById("chat-box").appendChild(messageElement);
+            var chatBox = document.getElementById("chat-box");
+            chatBox.scrollTop = chatBox.scrollHeight;
+        }
+
+        connect(); // 페이지 로드 시 WebSocket 연결
+    </script>
+</body>
+</html>
